@@ -776,7 +776,7 @@ function getOverallProgress() {
 
 // ===== RENDER CONNECTORS =====
 let connMainTab = "topics"; // "topics" | "bank"
-let gqIndex = 0, gqAnswer = null, gqResult = null, gqDragSelected = null, gqScore = {correct:0,total:0};
+let gqIndex = 0, gqAnswer = null, gqResult = null, gqDragSelected = null, gqScore = {correct:0,total:0}, gqLearnMode = false;
 let gqShuffled = null;
 function getGQShuffled() { if (!gqShuffled) gqShuffled = [...GENERAL_QUIZ].sort(()=>Math.random()-0.5); return gqShuffled; }
 
@@ -1047,18 +1047,55 @@ function renderGeneralQuizBank() {
     const bg = isCorr?"var(--successBg)":"var(--errorBg)";
     const col = isCorr?"var(--success)":"var(--error)";
     h += `<div style="padding:14px 16px;border-radius:12px;background:${bg};margin-bottom:14px"><div style="font-size:15px;font-weight:700;color:${col};margin-bottom:4px">${isCorr?"✓ Correct!":"✗ The answer is '"+esc(q.answer)+"'"}</div><div style="font-size:13px;color:var(--textSec);line-height:1.5">${esc(q.explanation)}</div></div>`;
-    if (!isCorr) {
-      h += `<div style="padding:12px;background:var(--surface);border-radius:10px;margin-bottom:14px">`;
-      q.options.forEach(opt => {
-        const info = DEFAULT_CONNECTORS.find(c=>c.word.toLowerCase()===opt.toLowerCase());
-        const isAns = opt===q.answer;
-        const isWrong = opt===gqAnswer && opt!==q.answer;
-        h += `<div style="padding:8px 10px;border-left:3px solid ${isAns?'var(--success)':isWrong?'var(--error)':'var(--border)'};margin-bottom:6px"><span style="font-weight:700;color:${isAns?'var(--success)':isWrong?'var(--error)':'var(--text)'}">${esc(opt)}</span>${isAns?' ✓':isWrong?' ✗':''} <span style="font-size:12px;color:var(--textMuted)">— ${info?esc(info.meaning).substring(0,80)+'...':'A connector used in formal writing.'}</span></div>`;
-      });
-      h += `</div>`;
+    if (isCorr) {
+      h += `<button onclick="gqNext()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#364395,#00C9B6);color:#fff;font-size:15px;font-weight:700;cursor:pointer">Next Question →</button>`;
+    } else if (!gqLearnMode) {
+      // Wrong answer — show relearn button (NOT next)
+      h += `<button onclick="gqStartRelearn()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#9D1348,#ED6B06);color:#fff;font-size:15px;font-weight:700;cursor:pointer">📚 Relearn These Connectors Before Continuing</button>`;
     }
-    h += `<button onclick="gqNext()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#364395,#00C9B6);color:#fff;font-size:15px;font-weight:700;cursor:pointer">Next Question →</button>`;
   }
+
+  // RELEARN MODE — mandatory popup
+  if (gqLearnMode && gqResult === "wrong") {
+    const q = quiz[gqIndex%quiz.length];
+    h += `<div style="margin-top:16px;background:var(--card);border-radius:16px;border:2px solid #9D1348;padding:20px;box-shadow:0 4px 20px rgba(157,19,72,0.15)">`;
+    h += `<div style="font-size:16px;font-weight:700;color:#9D1348;margin-bottom:4px">📚 Relearn Required</div>`;
+    h += `<div style="font-size:13px;color:var(--textSec);margin-bottom:16px;line-height:1.5">You must review all four connectors below before you can move to the next question. Read each one carefully to understand why the correct answer works and why the others don't.</div>`;
+
+    q.options.forEach(opt => {
+      const info = DEFAULT_CONNECTORS.find(c => c.word.toLowerCase() === opt.toLowerCase());
+      const isAns = opt === q.answer;
+      const isWrong = opt === gqAnswer && opt !== q.answer;
+      const borderCol = isAns ? "var(--success)" : isWrong ? "var(--error)" : "var(--border)";
+      const bgCol = isAns ? "var(--successBg)" : isWrong ? "var(--errorBg)" : "var(--surface)";
+      h += `<div style="border:2px solid ${borderCol};background:${bgCol};border-radius:12px;padding:14px 16px;margin-bottom:10px">`;
+      h += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">`;
+      h += `<span style="font-size:16px;font-weight:700;color:var(--text)">${esc(opt)}</span>`;
+      if (isAns) h += `<span style="font-size:11px;font-weight:700;color:var(--success);background:var(--successBg);padding:2px 8px;border-radius:4px">✓ CORRECT</span>`;
+      if (isWrong) h += `<span style="font-size:11px;font-weight:700;color:var(--error);background:var(--errorBg);padding:2px 8px;border-radius:4px">✗ YOUR PICK</span>`;
+      if (info) {
+        const cat = CATEGORIES[info.cat];
+        h += `<span style="font-size:10px;font-weight:600;color:${cat?cat.color:'var(--textMuted)'};background:${cat?cat.color+'18':'var(--surface)'};padding:2px 6px;border-radius:4px">${cat?cat.label:''}</span>`;
+      }
+      h += `</div>`;
+      if (info) {
+        h += `<div style="font-size:13px;color:var(--textSec);line-height:1.5;margin-bottom:6px">${esc(info.meaning)}</div>`;
+        h += `<div style="font-size:11px;color:var(--textMuted);margin-bottom:4px"><strong>Position:</strong> ${esc(info.position)}</div>`;
+        if (info.examples && info.examples.length > 0) {
+          h += `<div style="font-size:12px;font-style:italic;color:var(--textMuted);border-left:2px solid var(--border);padding-left:10px;margin-top:4px">"${esc(info.examples[0])}"</div>`;
+          if (info.examples.length > 1) h += `<div style="font-size:12px;font-style:italic;color:var(--textMuted);border-left:2px solid var(--border);padding-left:10px;margin-top:4px">"${esc(info.examples[1])}"</div>`;
+        }
+      } else {
+        h += `<div style="font-size:13px;color:var(--textMuted)">A connector used in formal academic writing.</div>`;
+      }
+      h += `</div>`;
+    });
+
+    h += `<div style="margin-top:12px;padding:12px 14px;background:rgba(237,107,6,0.06);border-radius:10px;border:1px solid rgba(237,107,6,0.15);margin-bottom:14px"><div style="font-size:13px;color:#C05621;line-height:1.5">💡 <strong>Tip:</strong> ${esc(q.explanation)}</div></div>`;
+    h += `<button onclick="gqCompleteRelearn()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#364395,#00C9B6);color:#fff;font-size:15px;font-weight:700;cursor:pointer">✓ I've Completed My Relearning — Next Question</button>`;
+    h += `</div>`;
+  }
+
   h += `</div></div>`;
   return h;
 }
@@ -1072,9 +1109,12 @@ function gqSubmit() {
   const isCorrect = gqAnswer.toLowerCase()===q.answer.toLowerCase();
   gqResult = isCorrect?"correct":"wrong";
   gqScore = {correct:gqScore.correct+(isCorrect?1:0),total:gqScore.total+1};
+  gqLearnMode = false;
   render();
 }
-function gqNext() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqIndex++;render();window.scrollTo(0,0); }
+function gqStartRelearn() { gqLearnMode = true; render(); window.scrollTo(0, document.body.scrollHeight); }
+function gqCompleteRelearn() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;render();window.scrollTo(0,0); }
+function gqNext() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;render();window.scrollTo(0,0); }
 
 // ===== WORD BANK =====
 function renderWordBank() {
