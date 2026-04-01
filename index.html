@@ -776,7 +776,25 @@ function getOverallProgress() {
 
 // ===== RENDER CONNECTORS =====
 let connMainTab = "topics"; // "topics" | "bank"
-let gqIndex = 0, gqAnswer = null, gqResult = null, gqDragSelected = null, gqScore = {correct:0,total:0}, gqLearnMode = false;
+// Question bank state — restored from localStorage
+let gqSavedProgress = JSON.parse(localStorage.getItem("pte-gq-progress") || '{"index":0,"correct":0,"total":0}');
+let gqIndex = gqSavedProgress.index || 0, gqAnswer = null, gqResult = null, gqDragSelected = null, gqScore = {correct:gqSavedProgress.correct||0,total:gqSavedProgress.total||0}, gqLearnMode = false;
+// Error tracking per connector and per topic
+let gqErrors = JSON.parse(localStorage.getItem("pte-gq-errors") || '{}');
+function saveGQProgress() { localStorage.setItem("pte-gq-progress", JSON.stringify({index:gqIndex,correct:gqScore.correct,total:gqScore.total})); }
+function saveGQErrors() { localStorage.setItem("pte-gq-errors", JSON.stringify(gqErrors)); }
+function getConnectorCategory(connWord) {
+  const conn = DEFAULT_CONNECTORS.find(c => c.word.toLowerCase() === connWord.toLowerCase());
+  return conn ? conn.cat : "unknown";
+}
+function getTopicErrors(catId) {
+  let total = 0;
+  Object.keys(gqErrors).forEach(connWord => {
+    if (getConnectorCategory(connWord) === catId) total += gqErrors[connWord];
+  });
+  return total;
+}
+function resetGQProgress() { gqIndex=0;gqScore={correct:0,total:0};gqErrors={};gqAnswer=null;gqResult=null;gqDragSelected=null;gqLearnMode=false;gqShuffled=null;saveGQProgress();saveGQErrors();render(); }
 let gqShuffled = null;
 function getGQShuffled() { if (!gqShuffled) gqShuffled = [...GENERAL_QUIZ].sort(()=>Math.random()-0.5); return gqShuffled; }
 
@@ -1015,7 +1033,36 @@ function renderGeneralQuizBank() {
   const opts = [...q.options].sort(() => 0.5 - Math.random());
 
   let h = `<div style="padding:12px 16px">`;
-  h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div style="display:flex;gap:16px;font-size:13px"><span style="color:var(--success);font-weight:700">✓ ${gqScore.correct}</span><span style="color:var(--textMuted)">of ${gqScore.total}</span></div><div style="font-size:12px;color:var(--textMuted);font-weight:600">Q${(gqIndex%quiz.length)+1} of ${quiz.length}</div></div>`;
+  // Score + Reset
+  h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="display:flex;gap:16px;font-size:13px"><span style="color:var(--success);font-weight:700">✓ ${gqScore.correct}</span><span style="color:var(--textMuted)">of ${gqScore.total}</span><span style="color:var(--error);font-weight:700">✗ ${gqScore.total - gqScore.correct}</span></div><div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:var(--textMuted);font-weight:600">Q${(gqIndex%quiz.length)+1}/${quiz.length}</span><button onclick="resetGQProgress()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--textMuted);font-size:10px;cursor:pointer">Reset</button></div></div>`;
+  // Error KPIs per topic
+  const topicErrs = [
+    {id:"contrast",label:"Contrast",emoji:"⚡",color:"#9D1348"},
+    {id:"addition",label:"Addition",emoji:"➕",color:"#364395"},
+    {id:"cause",label:"Cause",emoji:"🔗",color:"#008B5D"},
+    {id:"sequence",label:"Sequence",emoji:"📋",color:"#00C9B6"},
+  ];
+  h += `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">`;
+  topicErrs.forEach(t => {
+    const errCount = getTopicErrors(t.id);
+    h += `<div style="flex:1;min-width:70px;padding:8px 6px;background:var(--card);border-radius:10px;border:1px solid ${errCount>0?'var(--error)':'var(--border)'};text-align:center">`;
+    h += `<div style="font-size:11px;color:var(--textMuted)">${t.emoji} ${t.label}</div>`;
+    h += `<div style="font-size:16px;font-weight:700;color:${errCount>0?'var(--error)':'var(--success)'}">${errCount>0?errCount+'✗':'✓'}</div>`;
+    h += `</div>`;
+  });
+  h += `</div>`;
+  // Per-connector error breakdown (if any errors exist)
+  const totalErrors = Object.values(gqErrors).reduce((a,b)=>a+b,0);
+  if (totalErrors > 0) {
+    h += `<div style="margin-bottom:12px;padding:10px 14px;background:var(--errorBg);border-radius:10px;border:1px solid rgba(211,47,47,0.15)">`;
+    h += `<div style="font-size:11px;font-weight:700;color:var(--error);margin-bottom:6px">Most Errors By Connector:</div>`;
+    const sortedErrors = Object.entries(gqErrors).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    h += `<div style="display:flex;flex-wrap:wrap;gap:6px">`;
+    sortedErrors.forEach(([word,count]) => {
+      h += `<span style="font-size:12px;font-weight:600;color:var(--error);background:rgba(211,47,47,0.08);padding:3px 10px;border-radius:6px">${esc(word)} (${count})</span>`;
+    });
+    h += `</div></div>`;
+  }
 
   h += `<div style="background:var(--card);border-radius:16px;border:1.5px solid var(--border);padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">`;
   h += `<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">${isDrag?'🖐 Drag & Drop':'📋 Dropdown'} · Fill in the blank</div>`;
@@ -1110,11 +1157,18 @@ function gqSubmit() {
   gqResult = isCorrect?"correct":"wrong";
   gqScore = {correct:gqScore.correct+(isCorrect?1:0),total:gqScore.total+1};
   gqLearnMode = false;
+  if (!isCorrect) {
+    // Track error for the CORRECT answer's connector (the one they should have known)
+    const connWord = q.answer;
+    gqErrors[connWord] = (gqErrors[connWord] || 0) + 1;
+    saveGQErrors();
+  }
+  saveGQProgress();
   render();
 }
 function gqStartRelearn() { gqLearnMode = true; render(); window.scrollTo(0, document.body.scrollHeight); }
-function gqCompleteRelearn() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;render();window.scrollTo(0,0); }
-function gqNext() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;render();window.scrollTo(0,0); }
+function gqCompleteRelearn() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;saveGQProgress();render();window.scrollTo(0,0); }
+function gqNext() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;saveGQProgress();render();window.scrollTo(0,0); }
 
 // ===== WORD BANK =====
 function renderWordBank() {
