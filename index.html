@@ -433,20 +433,25 @@ function flipCard() { cardFlipped = !cardFlipped; render(); }
 function cardNext() { cardFlipped = false; const due = dueWords(vocabWords()); cardIndex = (cardIndex+1)%due.length; localStorage.setItem("pte-cardIdx", cardIndex); render(); }
 function cardPrev() { cardFlipped = false; const due = dueWords(vocabWords()); cardIndex = (cardIndex-1+due.length)%due.length; localStorage.setItem("pte-cardIdx", cardIndex); render(); }
 function cardKnow(id) {
-  const w = words.find(x=>x.id===id); const ns = (w.streak||0)+1; const learned = ns>=3;
-  updateWord(id, {streak:ns, bucket:learned?"learned":"practice", reviewAt:learned?0:Date.now()+(INTERVALS[ns]||600000)});
+  const w = words.find(x=>x.id===id);
+  if (!w) return;
+  const ns = (w.streak||0)+1; const learned = ns>=3;
+  words = words.map(x => x.id === id ? {...x, streak:ns, bucket:learned?"learned":"practice", reviewAt:learned?0:Date.now()+(INTERVALS[ns]||600000)} : x);
+  saveWords(words);
   cardFlipped = false;
-  // Adjust index if due list shrunk
   const due = dueWords(vocabWords());
   if (due.length > 0 && cardIndex >= due.length) cardIndex = 0;
   localStorage.setItem("pte-cardIdx", cardIndex);
+  render();
 }
 function cardDontKnow(id) {
-  updateWord(id, {streak:0, bucket:"practice", reviewAt:Date.now()+INTERVALS[1]});
+  words = words.map(x => x.id === id ? {...x, streak:0, bucket:"practice", reviewAt:Date.now()+INTERVALS[1]} : x);
+  saveWords(words);
   cardFlipped = false;
   const due = dueWords(vocabWords());
   if (due.length > 0 && cardIndex >= due.length) cardIndex = 0;
   localStorage.setItem("pte-cardIdx", cardIndex);
+  render();
 }
 
 // ===== SPELLING =====
@@ -701,6 +706,37 @@ const GENERAL_QUIZ = [
   {id:"gq78",type:"drag",sentence:"___ the initial results of the pilot programme were encouraging, with measurable improvement in student performance, the school board decided to expand the initiative district-wide.",answer:"Since",options:["Since","Despite","However","Moreover"],explanation:"'Since' — good results are the known reason for expansion."},
   {id:"gq79",type:"dropdown",sentence:"The peace negotiations had been ongoing for nearly three years, with multiple rounds failing to produce agreement. ___, a breakthrough came when a new mediator proposed a compromise both sides found acceptable.",answer:"Finally",options:["Finally","Moreover","However","Therefore"],explanation:"'Finally' — breakthrough at the end of a long process."},
   {id:"gq80",type:"drag",sentence:"The report highlights the urgent need for comprehensive reform across multiple sectors, including healthcare, education, and infrastructure. ___, it emphasises the importance of international cooperation in addressing the challenges posed by climate change and global inequality.",answer:"Furthermore",options:["Furthermore","However","Nevertheless","Consequently"],explanation:"'Furthermore' adds another key recommendation."},
+  // NEW QUESTIONS (81-110) — targeting underrepresented connectors
+  {id:"gq81",type:"dropdown",sentence:"The proposed highway would reduce commute times by forty percent. ___, it would require the demolition of a heritage-listed neighbourhood that residents have fought for decades to preserve.",answer:"On the other hand",options:["On the other hand","Moreover","Therefore","Furthermore"],explanation:"'On the other hand' presents the opposing viewpoint — benefit vs heritage loss."},
+  {id:"gq82",type:"drag",sentence:"The patient showed no improvement after six weeks of standard treatment. The medical team ___ decided to explore alternative therapeutic approaches.",answer:"finally",options:["finally","moreover","however","furthermore"],explanation:"'Finally' — the decision came after a long period with no progress."},
+  {id:"gq83",type:"dropdown",sentence:"___ the environmental regulations, many factories have had to invest in expensive pollution control equipment.",answer:"Due to",options:["Due to","Despite","Moreover","However"],explanation:"'Due to' + noun gives the reason — regulations caused the investment."},
+  {id:"gq84",type:"drag",sentence:"The charity provides food and shelter to the homeless. It ___ offers job training programmes to help them re-enter the workforce.",answer:"also",options:["also","however","therefore","nevertheless"],explanation:"'Also' mid-sentence adds another service the charity provides."},
+  {id:"gq85",type:"dropdown",sentence:"The ancient Romans built an extensive network of roads that connected every corner of their empire. ___ improving trade and military movement, these roads facilitated the spread of Roman culture and language.",answer:"In addition to",options:["In addition to","Despite","Because of","Instead of"],explanation:"'In addition to' + gerund adds another benefit of the road network."},
+  {id:"gq86",type:"drag",sentence:"The prime minister acknowledged the severity of the economic downturn. ___, she outlined a comprehensive recovery plan aimed at creating two million jobs within three years.",answer:"Subsequently",options:["Subsequently","However","Moreover","Nevertheless"],explanation:"'Subsequently' — the recovery plan was announced after acknowledging the problem."},
+  {id:"gq87",type:"dropdown",sentence:"The island nation is ___ a popular tourist destination ___ a major hub for international shipping, making it strategically important in global trade.",answer:"not only",options:["not only","neither","either","whether"],explanation:"'Not only...but also' is a correlative conjunction adding two roles of the island."},
+  {id:"gq88",type:"drag",sentence:"Experts have repeatedly warned about the dangers of antibiotic overuse. ___, many doctors continue to prescribe antibiotics for viral infections where they have no effect.",answer:"Nevertheless",options:["Nevertheless","Therefore","Furthermore","Consequently"],explanation:"'Nevertheless' — overuse continues despite repeated expert warnings."},
+  {id:"gq89",type:"dropdown",sentence:"The company was ___ profitable during the pandemic, reporting record earnings while many competitors filed for bankruptcy.",answer:"remarkably",options:["remarkably","however","despite","although"],explanation:"This is a trick question — 'remarkably' is an adverb modifying 'profitable', not a connector. The other options don't grammatically fit here."},
+  {id:"gq90",type:"drag",sentence:"The musician had no formal training and learned to play entirely by ear. ___, she went on to perform at some of the most prestigious concert halls in the world.",answer:"Nevertheless",options:["Nevertheless","Therefore","Furthermore","Consequently"],explanation:"'Nevertheless' — success despite lack of formal training."},
+  {id:"gq91",type:"dropdown",sentence:"The northern hemisphere experiences summer ___ the southern hemisphere experiences winter, and vice versa.",answer:"whereas",options:["whereas","moreover","therefore","although"],explanation:"'Whereas' directly contrasts the two hemispheres' seasons."},
+  {id:"gq92",type:"drag",sentence:"___, I would like to thank everyone who contributed to this project. Secondly, I want to highlight the key findings of our research.",answer:"Firstly",options:["Firstly","Finally","Moreover","However"],explanation:"'Firstly' begins a numbered sequence confirmed by 'Secondly'."},
+  {id:"gq93",type:"dropdown",sentence:"The country has abundant natural resources, including oil, gas, and rare earth minerals. ___, decades of corruption and mismanagement have prevented these resources from benefiting the general population.",answer:"However",options:["However","Moreover","Therefore","Furthermore"],explanation:"'However' contrasts the natural wealth with the failure to benefit people."},
+  {id:"gq94",type:"drag",sentence:"The surgeon explained the risks of the procedure in detail. ___, she emphasised that the potential benefits far outweighed the dangers for a patient in his condition.",answer:"However",options:["However","Therefore","Furthermore","Consequently"],explanation:"'However' contrasts risks with benefits to reassure the patient."},
+  {id:"gq95",type:"dropdown",sentence:"The library ___ houses over two million books; it also provides free access to digital databases, research journals, and online learning platforms.",answer:"not only",options:["not only","moreover","in addition","besides"],explanation:"'Not only...but also' (with 'also' later) adds emphasis to the library's dual offerings."},
+  {id:"gq96",type:"drag",sentence:"Automation has eliminated many routine manufacturing jobs. ___, it has created new roles in programming, maintenance, and data analysis that require higher levels of education.",answer:"On the other hand",options:["On the other hand","Therefore","Furthermore","Consequently"],explanation:"'On the other hand' balances job losses with new job creation."},
+  {id:"gq97",type:"dropdown",sentence:"The athlete trained for over a decade, sacrificing holidays, social events, and personal relationships. Her dedication ___ paid off when she won the gold medal at the Olympics.",answer:"finally",options:["finally","moreover","however","therefore"],explanation:"'Finally' — success after a very long period of sacrifice."},
+  {id:"gq98",type:"drag",sentence:"The professor's lectures are informative and well-structured. ___, her approachable manner encourages students to ask questions and engage in discussion.",answer:"Besides",options:["Besides","However","Therefore","Nevertheless"],explanation:"'Besides' adds another positive quality beyond the lectures themselves."},
+  {id:"gq99",type:"dropdown",sentence:"The new housing development will provide much-needed affordable homes for young families. ___, it will include a community centre, playground, and green spaces designed to promote social interaction.",answer:"In addition",options:["In addition","However","Therefore","Nevertheless"],explanation:"'In addition' adds extra amenities beyond just housing."},
+  {id:"gq100",type:"drag",sentence:"The government ___ imposed strict lockdowns during the pandemic; ___, scientists worked around the clock to develop an effective vaccine.",answer:"Meanwhile",options:["Meanwhile","Therefore","However","Furthermore"],explanation:"'Meanwhile' shows two things happening at the same time — lockdowns and vaccine development."},
+  {id:"gq101",type:"dropdown",sentence:"___ the widespread adoption of electric vehicles could significantly reduce urban air pollution, the environmental cost of manufacturing lithium-ion batteries remains a serious concern that must be addressed.",answer:"Although",options:["Although","Despite","Moreover","Therefore"],explanation:"'Although' + clause contrasts EV benefits with battery manufacturing concerns."},
+  {id:"gq102",type:"drag",sentence:"The city invested billions in flood prevention infrastructure following the devastating floods of 2015. ___, when record rainfall hit again in 2023, the new defences held firm and prevented a repeat disaster.",answer:"As a result",options:["As a result","However","Moreover","Nevertheless"],explanation:"'As a result' — the investment in infrastructure caused the successful defence."},
+  {id:"gq103",type:"dropdown",sentence:"The merger will create the largest telecommunications company in the region. ___, regulators have expressed concern that reduced competition could lead to higher prices for consumers.",answer:"However",options:["However","Moreover","Therefore","Furthermore"],explanation:"'However' contrasts the business achievement with regulatory concerns."},
+  {id:"gq104",type:"drag",sentence:"The novelist spent seven years researching and writing her debut book. She ___ travelled to twelve countries to interview survivors and gather primary source material.",answer:"also",options:["also","however","therefore","nevertheless"],explanation:"'Also' adds another thing the novelist did — travelling for research."},
+  {id:"gq105",type:"dropdown",sentence:"Traditional farming methods have been passed down through generations of indigenous communities. ___, these practices are increasingly being recognised by modern scientists as sustainable alternatives to industrial agriculture.",answer:"Moreover",options:["Moreover","However","Nevertheless","Consequently"],explanation:"'Moreover' adds that modern science is validating these traditional methods."},
+  {id:"gq106",type:"drag",sentence:"The research team collected data from over fifty countries spanning a period of twenty years. ___, even with such a comprehensive dataset, the researchers acknowledged that their findings might not be universally applicable.",answer:"Nevertheless",options:["Nevertheless","Therefore","Furthermore","Consequently"],explanation:"'Nevertheless' — limitations exist despite the comprehensive data collection."},
+  {id:"gq107",type:"dropdown",sentence:"The documentary explores the lives of migrant workers who left their families behind in search of better economic opportunities. ___, it examines the emotional toll that prolonged separation takes on both the workers and their children.",answer:"Furthermore",options:["Furthermore","However","Nevertheless","Consequently"],explanation:"'Furthermore' adds another dimension the documentary covers."},
+  {id:"gq108",type:"drag",sentence:"___ the teacher had explained the concept three times, several students still found it difficult to grasp the underlying mathematical principles.",answer:"Although",options:["Although","Despite","Therefore","Moreover"],explanation:"'Although' + clause — difficulty persists despite multiple explanations."},
+  {id:"gq109",type:"dropdown",sentence:"The volcanic eruption of 1815 was the most powerful in recorded history. ___, the resulting climate effects, known as the 'Year Without a Summer', caused widespread crop failures and famine across Europe and North America.",answer:"Consequently",options:["Consequently","Nevertheless","Furthermore","However"],explanation:"'Consequently' — the eruption directly caused the climate effects and famine."},
+  {id:"gq110",type:"drag",sentence:"___, the committee would like to express its gratitude to all participants. In summary, the findings of this study have significant implications for future policy development in the areas of education and healthcare.",answer:"In conclusion",options:["In conclusion","Moreover","However","Firstly"],explanation:"'In conclusion' signals the final summary of the committee's report."},
 ];
 
 // Topic difference explanations
@@ -776,25 +812,9 @@ function getOverallProgress() {
 
 // ===== RENDER CONNECTORS =====
 let connMainTab = "topics"; // "topics" | "bank"
-// Question bank state — restored from localStorage
-let gqSavedProgress = JSON.parse(localStorage.getItem("pte-gq-progress") || '{"index":0,"correct":0,"total":0}');
-let gqIndex = gqSavedProgress.index || 0, gqAnswer = null, gqResult = null, gqDragSelected = null, gqScore = {correct:gqSavedProgress.correct||0,total:gqSavedProgress.total||0}, gqLearnMode = false;
-// Error tracking per connector and per topic
-let gqErrors = JSON.parse(localStorage.getItem("pte-gq-errors") || '{}');
-function saveGQProgress() { localStorage.setItem("pte-gq-progress", JSON.stringify({index:gqIndex,correct:gqScore.correct,total:gqScore.total})); }
-function saveGQErrors() { localStorage.setItem("pte-gq-errors", JSON.stringify(gqErrors)); }
-function getConnectorCategory(connWord) {
-  const conn = DEFAULT_CONNECTORS.find(c => c.word.toLowerCase() === connWord.toLowerCase());
-  return conn ? conn.cat : "unknown";
-}
-function getTopicErrors(catId) {
-  let total = 0;
-  Object.keys(gqErrors).forEach(connWord => {
-    if (getConnectorCategory(connWord) === catId) total += gqErrors[connWord];
-  });
-  return total;
-}
-function resetGQProgress() { gqIndex=0;gqScore={correct:0,total:0};gqErrors={};gqAnswer=null;gqResult=null;gqDragSelected=null;gqLearnMode=false;gqShuffled=null;saveGQProgress();saveGQErrors();render(); }
+let gqIndex = 0, gqAnswer = null, gqResult = null, gqDragSelected = null, gqScore = {correct:0,total:0}, gqLearnMode = false;
+let gqLevel = parseInt(localStorage.getItem("pte-gq-level")) || 1; // 1=Normal(4 opts), 2=Hard(8 opts), 3=Expert(no opts, type answer)
+function setGQLevel(lv) { gqLevel = lv; localStorage.setItem("pte-gq-level", lv); gqAnswer=null;gqResult=null;gqDragSelected=null;gqLearnMode=false;render(); }
 let gqShuffled = null;
 function getGQShuffled() { if (!gqShuffled) gqShuffled = [...GENERAL_QUIZ].sort(()=>Math.random()-0.5); return gqShuffled; }
 
@@ -1025,47 +1045,54 @@ function connNextQ(wasCorrect) {
 
 
 // ===== GENERAL QUESTION BANK =====
+
+const ALL_CONNECTORS_FOR_OPTS = ["However","Moreover","Therefore","Although","Despite","Nevertheless","Furthermore","Consequently","Hence","Whereas","Besides","Since","Due to","As a result","Meanwhile","Subsequently","Firstly","Finally","In addition","In addition to","Also","On the contrary","On the other hand","In conclusion","Nonetheless"];
+function getLevel2Options(correctAnswer, origOptions) {
+  var pool = ALL_CONNECTORS_FOR_OPTS.filter(function(c) { return c.toLowerCase() !== correctAnswer.toLowerCase(); });
+  pool.sort(function() { return Math.random() - 0.5; });
+  var extra = pool.slice(0, 4);
+  var combined = origOptions.concat(extra);
+  // Deduplicate
+  var seen = {};
+  var unique = [];
+  combined.forEach(function(o) { var k = o.toLowerCase(); if (!seen[k]) { seen[k]=true; unique.push(o); } });
+  // Ensure we have 8, add more if needed
+  while (unique.length < 8) { var more = pool.shift(); if (more && !seen[more.toLowerCase()]) { seen[more.toLowerCase()]=true; unique.push(more); } else break; }
+  unique.sort(function() { return Math.random() - 0.5; });
+  return unique;
+}
+
 function renderGeneralQuizBank() {
   const quiz = getGQShuffled();
   const q = quiz[gqIndex % quiz.length];
   const parts = q.sentence.split("___");
   const isDrag = q.type === "drag";
-  const opts = [...q.options].sort(() => 0.5 - Math.random());
+  var opts;
+  if (gqLevel === 2) { opts = getLevel2Options(q.answer, q.options); }
+  else { opts = [...q.options].sort(() => 0.5 - Math.random()); }
+
+  const lvLabels = {1:"Level 1: Normal (4 options)",2:"Level 2: Hard (8 options)",3:"Level 3: Expert (No options)"};
+  const lvColors = {1:"var(--success)",2:"var(--warning)",3:"var(--error)"};
 
   let h = `<div style="padding:12px 16px">`;
-  // Score + Reset
-  h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="display:flex;gap:16px;font-size:13px"><span style="color:var(--success);font-weight:700">✓ ${gqScore.correct}</span><span style="color:var(--textMuted)">of ${gqScore.total}</span><span style="color:var(--error);font-weight:700">✗ ${gqScore.total - gqScore.correct}</span></div><div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:var(--textMuted);font-weight:600">Q${(gqIndex%quiz.length)+1}/${quiz.length}</span><button onclick="resetGQProgress()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--textMuted);font-size:10px;cursor:pointer">Reset</button></div></div>`;
-  // Error KPIs per topic
-  const topicErrs = [
-    {id:"contrast",label:"Contrast",emoji:"⚡",color:"#9D1348"},
-    {id:"addition",label:"Addition",emoji:"➕",color:"#364395"},
-    {id:"cause",label:"Cause",emoji:"🔗",color:"#008B5D"},
-    {id:"sequence",label:"Sequence",emoji:"📋",color:"#00C9B6"},
-  ];
-  h += `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">`;
-  topicErrs.forEach(t => {
-    const errCount = getTopicErrors(t.id);
-    h += `<div style="flex:1;min-width:70px;padding:8px 6px;background:var(--card);border-radius:10px;border:1px solid ${errCount>0?'var(--error)':'var(--border)'};text-align:center">`;
-    h += `<div style="font-size:11px;color:var(--textMuted)">${t.emoji} ${t.label}</div>`;
-    h += `<div style="font-size:16px;font-weight:700;color:${errCount>0?'var(--error)':'var(--success)'}">${errCount>0?errCount+'✗':'✓'}</div>`;
-    h += `</div>`;
+  // Level toggles
+  h += '<div style="display:flex;gap:6px;margin-bottom:12px">';
+  [1,2,3].forEach(function(lv) {
+    var labels = {1:"Normal",2:"Hard",3:"Expert"};
+    var emojis = {1:"🟢",2:"🟡",3:"🔴"};
+    var isActive = gqLevel === lv;
+    var bg = isActive ? (lv===1?'var(--successBg)':lv===2?'var(--warningBg)':'var(--errorBg)') : 'transparent';
+    var bdr = isActive ? (lv===1?'var(--success)':lv===2?'var(--warning)':'var(--error)') : 'var(--border)';
+    var col = isActive ? (lv===1?'var(--success)':lv===2?'var(--warning)':'var(--error)') : 'var(--textMuted)';
+    h += '<button onclick="setGQLevel('+lv+')" style="flex:1;padding:8px 6px;border-radius:10px;border:1.5px solid '+bdr+';background:'+bg+';color:'+col+';font-size:11px;font-weight:700;cursor:pointer;text-align:center">'+emojis[lv]+' '+labels[lv]+'</button>';
   });
-  h += `</div>`;
-  // Per-connector error breakdown (if any errors exist)
-  const totalErrors = Object.values(gqErrors).reduce((a,b)=>a+b,0);
-  if (totalErrors > 0) {
-    h += `<div style="margin-bottom:12px;padding:10px 14px;background:var(--errorBg);border-radius:10px;border:1px solid rgba(211,47,47,0.15)">`;
-    h += `<div style="font-size:11px;font-weight:700;color:var(--error);margin-bottom:6px">Most Errors By Connector:</div>`;
-    const sortedErrors = Object.entries(gqErrors).sort((a,b)=>b[1]-a[1]).slice(0,6);
-    h += `<div style="display:flex;flex-wrap:wrap;gap:6px">`;
-    sortedErrors.forEach(([word,count]) => {
-      h += `<span style="font-size:12px;font-weight:600;color:var(--error);background:rgba(211,47,47,0.08);padding:3px 10px;border-radius:6px">${esc(word)} (${count})</span>`;
-    });
-    h += `</div></div>`;
-  }
+  h += '</div>';
+
+  h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="display:flex;gap:16px;font-size:13px"><span style="color:var(--success);font-weight:700">✓ ${gqScore.correct}</span><span style="color:var(--textMuted)">of ${gqScore.total}</span></div><div style="font-size:12px;color:var(--textMuted);font-weight:600">Q${(gqIndex%quiz.length)+1}/${quiz.length}</div></div>`;
 
   h += `<div style="background:var(--card);border-radius:16px;border:1.5px solid var(--border);padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">`;
-  h += `<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">${isDrag?'🖐 Drag & Drop':'📋 Dropdown'} · Fill in the blank</div>`;
+  var lvlLabel = gqLevel===1?'4 Options':gqLevel===2?'8 Options — Hard':gqLevel===3?'No Options — Type Your Answer':'';
+  h += '<div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px">' + lvlLabel + ' · Fill in the blank</div>';
 
   const blankContent = gqAnswer || "___";
   const blankColor = gqResult==="correct"?"var(--success)":gqResult==="wrong"?"var(--error)":"var(--accent)";
@@ -1073,7 +1100,14 @@ function renderGeneralQuizBank() {
   h += `<div style="font-size:16px;line-height:1.8;color:var(--text);margin-bottom:20px">${esc(parts[0])}<span style="display:inline-block;min-width:90px;padding:4px 12px;border:2px dashed ${blankColor};border-radius:8px;text-align:center;font-weight:700;color:${blankColor};background:${blankBg};${gqResult?'border-style:solid':''}">${esc(blankContent)}</span>${esc(parts[1]||'')}</div>`;
 
   if (!gqResult) {
-    if (isDrag) {
+    if (gqLevel === 3) {
+      // EXPERT: No options — type your answer
+      h += '<div style="display:flex;gap:10px;margin-bottom:16px">';
+      h += '<input id="gqTypedAnswer" type="text" value="' + esc(gqAnswer||'') + '" placeholder="Type the connector..." oninput="gqAnswer=this.value" onkeydown="if(event.key===\'Enter\')gqSubmit()" style="flex:1;padding:14px 16px;border-radius:12px;border:2px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;font-weight:600;outline:none">';
+      h += '</div>';
+      if (gqAnswer) h += '<button onclick="gqSubmit()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#364395,#00C9B6);color:#fff;font-size:15px;font-weight:700;cursor:pointer">Submit Answer</button>';
+    } else if (isDrag || gqLevel === 2) {
+      // DRAG / LEVEL 2: Show clickable option chips
       h += `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px">`;
       opts.forEach(opt => {
         const isSel = gqDragSelected === opt;
@@ -1082,6 +1116,7 @@ function renderGeneralQuizBank() {
       h += `</div>`;
       if (gqDragSelected) h += `<button onclick="gqSubmit()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#364395,#00C9B6);color:#fff;font-size:15px;font-weight:700;cursor:pointer">Submit Answer</button>`;
     } else {
+      // DROPDOWN: Level 1 only
       h += `<select onchange="gqDropdownPick(this.value)" style="width:100%;padding:14px;border-radius:12px;border:2px solid var(--border);background:var(--surface);color:var(--text);font-size:15px;font-weight:600;cursor:pointer;margin-bottom:16px"><option value="">-- Select a connector --</option>`;
       opts.forEach(opt => h += `<option value="${esc(opt)}" ${gqAnswer===opt?'selected':''}>${esc(opt)}</option>`);
       h += `</select>`;
@@ -1094,6 +1129,15 @@ function renderGeneralQuizBank() {
     const bg = isCorr?"var(--successBg)":"var(--errorBg)";
     const col = isCorr?"var(--success)":"var(--error)";
     h += `<div style="padding:14px 16px;border-radius:12px;background:${bg};margin-bottom:14px"><div style="font-size:15px;font-weight:700;color:${col};margin-bottom:4px">${isCorr?"✓ Correct!":"✗ The answer is '"+esc(q.answer)+"'"}</div><div style="font-size:13px;color:var(--textSec);line-height:1.5">${esc(q.explanation)}</div></div>`;
+    // Show connector definition (especially useful for Level 3)
+    var defConn = DEFAULT_CONNECTORS.find(function(c){return c.word.toLowerCase()===q.answer.toLowerCase();});
+    if (defConn) {
+      h += '<div style="padding:12px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--border);margin-bottom:14px">';
+      h += '<div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:4px">📖 ' + esc(defConn.word) + '</div>';
+      h += '<div style="font-size:12px;color:var(--textSec);line-height:1.5;margin-bottom:4px">' + esc(defConn.meaning) + '</div>';
+      h += '<div style="font-size:11px;color:var(--textMuted)">Position: ' + esc(defConn.position) + '</div>';
+      h += '</div>';
+    }
     if (isCorr) {
       h += `<button onclick="gqNext()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#364395,#00C9B6);color:#fff;font-size:15px;font-weight:700;cursor:pointer">Next Question →</button>`;
     } else if (!gqLearnMode) {
@@ -1157,18 +1201,11 @@ function gqSubmit() {
   gqResult = isCorrect?"correct":"wrong";
   gqScore = {correct:gqScore.correct+(isCorrect?1:0),total:gqScore.total+1};
   gqLearnMode = false;
-  if (!isCorrect) {
-    // Track error for the CORRECT answer's connector (the one they should have known)
-    const connWord = q.answer;
-    gqErrors[connWord] = (gqErrors[connWord] || 0) + 1;
-    saveGQErrors();
-  }
-  saveGQProgress();
   render();
 }
 function gqStartRelearn() { gqLearnMode = true; render(); window.scrollTo(0, document.body.scrollHeight); }
-function gqCompleteRelearn() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;saveGQProgress();render();window.scrollTo(0,0); }
-function gqNext() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;saveGQProgress();render();window.scrollTo(0,0); }
+function gqCompleteRelearn() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;render();window.scrollTo(0,0); }
+function gqNext() { gqResult=null;gqAnswer=null;gqDragSelected=null;gqLearnMode=false;gqIndex++;render();window.scrollTo(0,0); }
 
 // ===== WORD BANK =====
 function renderWordBank() {
@@ -1230,7 +1267,7 @@ function submitModal() {
 }
 
 // Init
-render();
+try { render(); } catch(e) { document.getElementById("app").innerHTML = '<div style="padding:20px;color:red;font-family:monospace"><h2>Error</h2><p>'+e.message+'</p><button onclick="localStorage.clear();location.reload()" style="padding:10px 20px;margin-top:10px;cursor:pointer">Clear Data & Reload</button></div>'; }
 </script>
 </body>
 </html>
